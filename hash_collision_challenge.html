@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laboratório de Hashing: Desafio de Colisão</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              900: '#1e1b4b',
+            },
+            neon: {
+              purple: '#a855f7',
+              blue: '#3b82f6',
+              cyan: '#06b6d4',
+              green: '#22c55e',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #e2e8f0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Glow Utilities */
+    .glow-purple {
+      box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.4);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4);
+    }
+    .glow-green {
+      box-shadow: 0 0 30px -5px rgba(34, 197, 94, 0.5);
+    }
+    /* Glassmorphism */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-purple-500 selection:text-white">
+
+  <!-- Header / Navbar -->
+  <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+          <i class="fa-solid fa-hashtag"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold bg-gradient-to-r from-purple-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">
+            Hash Lab
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Laboratório de Segurança & Criptografia</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+          Desafio Interativo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-10">
+
+    <!-- Section 1: Hero & Code Explanation -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+      <!-- Contexto & Regras -->
+      <div class="lg:col-span-7 glass-card rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
+        <div class="absolute -top-12 -left-12 w-40 h-40 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="relative z-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-800 text-purple-300 text-xs font-medium mb-4">
+            <i class="fa-solid fa-graduation-cap"></i>
+            Conceito Acadêmico
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-4">
+            O Desafio da Colisão de Hash
+          </h2>
+          <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-4">
+            Uma <strong class="text-purple-300">Função Hash</strong> transforma dados de qualquer tamanho em um valor numérico fixo. Mas o que acontece se duas entradas totalmente diferentes gerarem exatamente o <strong class="text-cyan-300">mesmo resultado</strong>?
+          </p>
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300 text-sm space-y-2 mb-6">
+            <p class="font-semibold text-purple-400 flex items-center gap-2">
+              <i class="fa-solid fa-bullseye"></i> Seu Objetivo:
+            </p>
+            <p>Encontrar duas palavras <strong>diferentes</strong> (com no mínimo 2 letras cada) que produzam o mesmo valor de Hash utilizando a função <code class="text-amber-300 font-mono">calcula_hash</code>.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 pt-2 text-xs text-slate-400 border-t border-slate-800/80">
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> ASCII Sum</span>
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> Validação em Tempo Real</span>
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-400"></i> Sem Distinção Visual</span>
+        </div>
+      </div>
+
+      <!-- Syntax Highlight Code Block -->
+      <div class="lg:col-span-5 glass-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+        <div>
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/80 inline-block"></span>
+            </div>
+            <span class="text-xs font-mono text-slate-400">calcula_hash.js</span>
+          </div>
+
+          <pre class="font-mono text-xs sm:text-sm text-slate-200 overflow-x-auto p-4 rounded-xl bg-slate-950 border border-slate-900 leading-relaxed"><code><span class="text-purple-400">function</span> <span class="text-blue-400">calcula_hash</span>(<span class="text-orange-300">palavra</span>) {
+  <span class="text-purple-400">let</span> hash = <span class="text-emerald-400">0</span>;
+  
+  <span class="text-slate-500">// Percorre cada caractere da palavra</span>
+  <span class="text-purple-400">for</span> (<span class="text-purple-400">let</span> i = <span class="text-emerald-400">0</span>; i &lt; palavra.length; i++) {
+    <span class="text-slate-500">// Soma o valor ASCII do caractere</span>
+    hash += palavra.<span class="text-yellow-300">charCodeAt</span>(i);
+  }
+  
+  <span class="text-purple-400">return</span> hash;
+}</code></pre>
+        </div>
+
+        <div class="mt-4 p-3 rounded-lg bg-blue-950/40 border border-blue-800/40 text-blue-300 text-xs flex items-start gap-2.5">
+          <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 text-sm"></i>
+          <span>
+            Esta função calcula o Hash acumulando os códigos inteiros do padrão <strong>ASCII / Unicode</strong> de cada letra.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Interactive Challenge Area -->
+    <section class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-gamepad text-purple-400"></i>
+          Área do Desafio Interativo
+        </h3>
+        <button id="btnReset" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700">
+          <i class="fa-solid fa-rotate-right"></i> Limpar Campos
+        </button>
+      </div>
+
+      <!-- Dual Input Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Word 1 Card -->
+        <div class="glass-card rounded-2xl p-6 transition-all duration-300 border-slate-800 focus-within:border-purple-500/50" id="cardWord1">
+          <div class="flex justify-between items-center mb-3">
+            <label for="input1" class="text-xs font-bold uppercase tracking-wider text-purple-400">Palavra 1</label>
+            <span id="badgeLen1" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">0 letras</span>
+          </div>
+          <input 
+            type="text" 
+            id="input1" 
+            placeholder="Digite a primeira palavra..." 
+            value="AMOR"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-lg transition"
+          />
+          
+          <!-- Hash Display Box 1 -->
+          <div class="mt-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800/80">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs text-slate-400">Valor de Hash:</span>
+              <span id="hash1Value" class="text-xl font-bold font-mono text-purple-400">303</span>
+            </div>
+            
+            <!-- ASCII breakdown -->
+            <div class="text-xs text-slate-400 mb-1">Cálculo ASCII detalhado:</div>
+            <div id="breakdown1" class="font-mono text-xs text-slate-300 flex flex-wrap gap-1.5 items-center min-h-[32px] p-2 bg-slate-900 rounded-lg border border-slate-800">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Word 2 Card -->
+        <div class="glass-card rounded-2xl p-6 transition-all duration-300 border-slate-800 focus-within:border-cyan-500/50" id="cardWord2">
+          <div class="flex justify-between items-center mb-3">
+            <label for="input2" class="text-xs font-bold uppercase tracking-wider text-cyan-400">Palavra 2</label>
+            <span id="badgeLen2" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">0 letras</span>
+          </div>
+          <input 
+            type="text" 
+            id="input2" 
+            placeholder="Digite a segunda palavra..." 
+            value="ROMA"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-lg transition"
+          />
+          
+          <!-- Hash Display Box 2 -->
+          <div class="mt-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800/80">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs text-slate-400">Valor de Hash:</span>
+              <span id="hash2Value" class="text-xl font-bold font-mono text-cyan-400">303</span>
+            </div>
+            
+            <!-- ASCII breakdown -->
+            <div class="text-xs text-slate-400 mb-1">Cálculo ASCII detalhado:</div>
+            <div id="breakdown2" class="font-mono text-xs text-slate-300 flex flex-wrap gap-1.5 items-center min-h-[32px] p-2 bg-slate-900 rounded-lg border border-slate-800">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Real-time Validation Panel -->
+      <div class="glass-card rounded-2xl p-6 border-slate-800">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-purple-400"></i> Painel de Validação em Tempo Real
+        </h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Condition 1 -->
+          <div id="condDiff" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between transition-all">
+            <div class="flex items-center space-x-3">
+              <div id="iconCondDiff" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm">
+                <i class="fa-solid fa-times"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">Condição 1</p>
+                <p class="text-sm font-semibold text-slate-200">Palavras Diferentes</p>
+              </div>
+            </div>
+            <span id="statusCondDiff" class="text-xs px-2 py-1 rounded font-mono bg-slate-800 text-slate-500">Pendente</span>
+          </div>
+
+          <!-- Condition 2 -->
+          <div id="condLen" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between transition-all">
+            <div class="flex items-center space-x-3">
+              <div id="iconCondLen" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm">
+                <i class="fa-solid fa-times"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">Condição 2</p>
+                <p class="text-sm font-semibold text-slate-200">Mínimo 2 Letras Cada</p>
+              </div>
+            </div>
+            <span id="statusCondLen" class="text-xs px-2 py-1 rounded font-mono bg-slate-800 text-slate-500">Pendente</span>
+          </div>
+
+          <!-- Condition 3 -->
+          <div id="condHash" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between transition-all">
+            <div class="flex items-center space-x-3">
+              <div id="iconCondHash" class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 font-bold text-sm">
+                <i class="fa-solid fa-times"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400">Condição 3</p>
+                <p class="text-sm font-semibold text-slate-200">Hashes Idênticos</p>
+              </div>
+            </div>
+            <span id="statusCondHash" class="text-xs px-2 py-1 rounded font-mono bg-slate-800 text-slate-500">Pendente</span>
+          </div>
+        </div>
+
+        <!-- Victory Banner (Hidden by default) -->
+        <div id="victoryBanner" class="hidden mt-6 p-6 rounded-2xl bg-gradient-to-r from-emerald-900/80 via-teal-900/80 to-slate-900 border-2 border-emerald-500/80 glow-green text-center space-y-3 animate-bounce-short">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 text-2xl mb-1">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+          <h3 class="text-2xl font-black text-white tracking-wide">
+            PARABÉNS! VOCÊ DESCOBRIU UMA COLISÃO DE HASH! 🎉
+          </h3>
+          <p class="text-emerald-200 text-sm max-w-2xl mx-auto">
+            As palavras <span id="vWord1" class="font-mono font-bold text-white underline">AMOR</span> e <span id="vWord2" class="font-mono font-bold text-white underline">ROMA</span> são totalmente diferentes, mas geraram exatamente o mesmo valor Hash: <span id="vHash" class="font-mono font-bold text-emerald-300">303</span>!
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Helper Tools & Hints -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Hint & Anagram Generator Card -->
+      <div class="lg:col-span-6 glass-card rounded-2xl p-6 border-slate-800 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-lightbulb text-amber-400"></i>
+              Dicas & Auxílio
+            </h3>
+            <button id="btnToggleHint" class="text-xs text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-lg border border-amber-400/20 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-eye"></i> Ver Dica do Desafio
+            </button>
+          </div>
+
+          <!-- Hint Content Box -->
+          <div id="hintBox" class="hidden p-4 rounded-xl bg-amber-950/30 border border-amber-800/40 text-amber-200 text-sm mb-6 space-y-2">
+            <p class="font-semibold flex items-center gap-2 text-amber-300">
+              <i class="fa-solid fa-key"></i> Segredo da Matemática:
+            </p>
+            <p class="leading-relaxed">
+              Como a nossa função de hash apenas <strong>soma</strong> os códigos ASCII sem se importar com a posição da letra, a adição é <em>comutativa</em> (<code class="bg-amber-900/50 px-1 rounded">A + B = B + A</code>).
+            </p>
+            <p class="text-xs text-amber-300/80">
+              💡 <strong>Dica prática:</strong> Qualquer palavra que seja um <strong>anagrama</strong> (mesmas letras em ordem diferente) de outra palavra gerará a mesma soma de hash!
+            </p>
+          </div>
+
+          <p class="text-xs text-slate-400 mb-3">Testador rápido com 1-clique (Exemplos Prontos):</p>
+          
+          <!-- Quick Presets -->
+          <div class="flex flex-wrap gap-2">
+            <button class="btn-preset px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700/80 text-xs font-mono text-slate-200 transition flex items-center gap-2" data-w1="AMOR" data-w2="ROMA">
+              <i class="fa-solid fa-bolt text-amber-400"></i> AMOR & ROMA
+            </button>
+            <button class="btn-preset px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700/80 text-xs font-mono text-slate-200 transition flex items-center gap-2" data-w1="BOLA" data-w2="LABO">
+              <i class="fa-solid fa-bolt text-amber-400"></i> BOLA & LABO
+            </button>
+            <button class="btn-preset px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700/80 text-xs font-mono text-slate-200 transition flex items-center gap-2" data-w1="CASA" data-w2="SACA">
+              <i class="fa-solid fa-bolt text-amber-400"></i> CASA & SACA
+            </button>
+            <button class="btn-preset px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-purple-600/30 hover:border-purple-500/50 border border-slate-700/80 text-xs font-mono text-slate-200 transition flex items-center gap-2" data-w1="GATO" data-w2="TOGA">
+              <i class="fa-solid fa-bolt text-amber-400"></i> GATO & TOGA
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-500">
+          Você também pode tentar palavras inventadas, basta alterar a ordem de qualquer caractere!
+        </div>
+      </div>
+
+      <!-- Anagram Generator Utility -->
+      <div class="lg:col-span-6 glass-card rounded-2xl p-6 border-slate-800 flex flex-col justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-shuffle text-cyan-400"></i>
+            Gerador Automático de Colisões
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">
+            Digite uma palavra qualquer e clique em embaralhar para criar instantaneamente uma colisão válida para o desafio!
+          </p>
+
+          <div class="flex gap-2 mb-4">
+            <input 
+              type="text" 
+              id="generatorInput" 
+              placeholder="Digite uma palavra..." 
+              value="BRASIL"
+              class="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono"
+            />
+            <button id="btnGenerateAnagram" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium text-xs transition shadow-lg flex items-center gap-2 whitespace-nowrap">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Embaralhar e Aplicar
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400">
+          <p><i class="fa-solid fa-microchip text-slate-500 mr-1"></i> <strong>Como funciona o gerador:</strong> Ele inverte ou embaralha aleatoriamente as posições dos caracteres da palavra digitada, preservando a soma dos códigos ASCII inteiros.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Section 4: Deep Educational Explanation (Commutativity & Cryptographic Hashes) -->
+    <section class="glass-card rounded-2xl p-6 sm:p-8 border-slate-800 space-y-8">
+      <div class="border-b border-slate-800 pb-4">
+        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 inline-block mb-2">
+          Teoria Avançada
+        </span>
+        <h3 class="text-2xl font-bold text-white">
+          Por que a nossa função falha e como funcionam hashes reais?
+        </h3>
+        <p class="text-slate-400 text-sm mt-1">
+          Compreenda a falha de projeto da soma ASCII simples e o efeito avalanche das funções criptográficas modernas.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Explanation 1: Commutativity -->
+        <div class="space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg">
+            1
+          </div>
+          <h4 class="text-base font-bold text-white">Comutatividade na Soma Simples</h4>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            A função <code class="text-amber-300 font-mono">calcula_hash</code> que construímos na aula utiliza a operação matemática da <strong>Adição Simples</strong>. A adição possui a propriedade <em>comutativa</em>:
+          </p>
+          <div class="p-3 rounded-xl bg-slate-950 font-mono text-center text-sm text-cyan-300 border border-slate-800">
+            ASCII('A') + ASCII('M') + ASCII('O') + ASCII('R') <br/>
+            =<br/>
+            ASCII('R') + ASCII('O') + ASCII('M') + ASCII('A') = 303
+          </div>
+          <p class="text-slate-400 text-xs leading-relaxed">
+            Como a ordem dos fatores não altera a soma, qualquer permuta de letras gera uma <strong>Colisão de Hash trivial</strong>.
+          </p>
+        </div>
+
+        <!-- Explanation 2: Modern SHA-256 -->
+        <div class="space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-lg">
+            2
+          </div>
+          <h4 class="text-base font-bold text-white">Hashes Criptográficos Reais (SHA-256)</h4>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            Algoritmos modernos de mercado como o <strong>SHA-256</strong> utilizam operações bitwise complexas (deslocamentos de bits, rotações, XOR) que dependem estritamente da <strong>posição de cada caractere</strong>.
+          </p>
+          <p class="text-slate-400 text-xs leading-relaxed">
+            Isso produz o chamado <strong>Efeito Avalanche</strong>: alterar apenas a posição de uma única letra muda completamente todo o hash final, tornando colisões extremamente improváveis.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Interactive SHA-256 Comparison Demo -->
+      <div class="p-6 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-flask text-emerald-400"></i>
+          Comparativo Interativo: Soma ASCII vs SHA-256 Real
+        </h4>
+        <p class="text-xs text-slate-400">
+          Digite uma palavra abaixo para observar em tempo real a diferença gritante entre a nossa função fraca e o padrão industrial SHA-256:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          <div class="md:col-span-4">
+            <input 
+              type="text" 
+              id="shaCompareInput" 
+              placeholder="Digite aqui..." 
+              value="AMOR"
+              class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div class="md:col-span-8 space-y-2">
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono">
+              <span class="text-slate-400">Nosso Hash Simples (ASCII):</span>
+              <span id="shaAsciiResult" class="text-purple-400 font-bold">303</span>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono overflow-x-auto">
+              <span class="text-slate-400 mr-2 whitespace-nowrap">SHA-256 Real:</span>
+              <span id="sha256Result" class="text-emerald-400 font-bold break-all text-[10px] sm:text-xs">
+                calculando...
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4">
+      <p>Plataforma de Aprendizado Interativo em Ciência da Computação & Criptografia</p>
+      <p class="mt-1 text-slate-600">Desenvolvido com HTML5, Tailwind CSS e JavaScript Vanilla.</p>
+    </div>
+  </footer>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // State Variables
+    let word1 = "AMOR";
+    let word2 = "ROMA";
+    let confettiTriggered = false;
+
+    // DOM Element References
+    const input1 = document.getElementById('input1');
+    const input2 = document.getElementById('input2');
+    const badgeLen1 = document.getElementById('badgeLen1');
+    const badgeLen2 = document.getElementById('badgeLen2');
+    const hash1Value = document.getElementById('hash1Value');
+    const hash2Value = document.getElementById('hash2Value');
+    const breakdown1 = document.getElementById('breakdown1');
+    const breakdown2 = document.getElementById('breakdown2');
+
+    // Validation DOM Elements
+    const condDiff = document.getElementById('condDiff');
+    const iconCondDiff = document.getElementById('iconCondDiff');
+    const statusCondDiff = document.getElementById('statusCondDiff');
+
+    const condLen = document.getElementById('condLen');
+    const iconCondLen = document.getElementById('iconCondLen');
+    const statusCondLen = document.getElementById('statusCondLen');
+
+    const condHash = document.getElementById('condHash');
+    const iconCondHash = document.getElementById('iconCondHash');
+    const statusCondHash = document.getElementById('statusCondHash');
+
+    const victoryBanner = document.getElementById('victoryBanner');
+    const vWord1 = document.getElementById('vWord1');
+    const vWord2 = document.getElementById('vWord2');
+    const vHash = document.getElementById('vHash');
+
+    const cardWord1 = document.getElementById('cardWord1');
+    const cardWord2 = document.getElementById('cardWord2');
+
+    // Button / Controls Elements
+    const btnReset = document.getElementById('btnReset');
+    const btnToggleHint = document.getElementById('btnToggleHint');
+    const hintBox = document.getElementById('hintBox');
+    const generatorInput = document.getElementById('generatorInput');
+    const btnGenerateAnagram = document.getElementById('btnGenerateAnagram');
+
+    // SHA-256 Comparison Demo Elements
+    const shaCompareInput = document.getElementById('shaCompareInput');
+    const shaAsciiResult = document.getElementById('shaAsciiResult');
+    const sha256Result = document.getElementById('sha256Result');
+
+    /**
+     * Hash Function Implementation
+     * Sum of ASCII character codes
+     */
+    function calcula_hash(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash += str.charCodeAt(i);
+      }
+      return hash;
+    }
+
+    /**
+     * Renders detailed ASCII breakdown tags for a given word
+     */
+    function renderBreakdown(str, containerElement) {
+      containerElement.innerHTML = '';
+      if (!str || str.length === 0) {
+        containerElement.innerHTML = '<span class="text-slate-600 italic">Digite algo para ver o cálculo...</span>';
+        return;
+      }
+
+      let total = 0;
+      const elements = [];
+
+      for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        const ascii = str.charCodeAt(i);
+        total += ascii;
+
+        // Individual Char Badge
+        const badge = document.createElement('span');
+        badge.className = 'inline-flex items-center gap-1 bg-slate-800 px-2 py-1 rounded border border-slate-700 text-[11px]';
+        badge.innerHTML = `<strong class="text-amber-400">'${char}'</strong><span class="text-slate-500">(${ascii})</span>`;
+        
+        elements.push(badge);
+
+        if (i < str.length - 1) {
+          const plus = document.createElement('span');
+          plus.className = 'text-slate-500 font-bold';
+          plus.innerText = '+';
+          elements.push(plus);
+        }
+      }
+
+      // Append equality total
+      const equals = document.createElement('span');
+      equals.className = 'text-slate-400 font-bold ml-1';
+      equals.innerText = `= ${total}`;
+      elements.push(equals);
+
+      elements.forEach(el => containerElement.appendChild(el));
+    }
+
+    /**
+     * Computes SHA-256 for a string using Web Crypto API
+     */
+    async function computeSHA256(str) {
+      if (!str) return '—';
+      try {
+        const msgUint8 = new TextEncoder().encode(str);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+      } catch (err) {
+        return 'Não suportado no navegador';
+      }
+    }
+
+    /**
+     * Trigger Confetti Celebration
+     */
+    function triggerConfetti() {
+      if (typeof confetti === 'function') {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#a855f7', '#06b6d4', '#22c55e', '#f59e0b']
+        });
+      }
+    }
+
+    /**
+     * Main validation function
+     */
+    function validateChallenge() {
+      word1 = input1.value;
+      word2 = input2.value;
+
+      const hash1 = calcula_hash(word1);
+      const hash2 = calcula_hash(word2);
+
+      // Update Length Labels & Hash Values
+      badgeLen1.innerText = `${word1.length} ${word1.length === 1 ? 'letra' : 'letras'}`;
+      badgeLen2.innerText = `${word2.length} ${word2.length === 1 ? 'letra' : 'letras'}`;
+
+      hash1Value.innerText = word1.length > 0 ? hash1 : '0';
+      hash2Value.innerText = word2.length > 0 ? hash2 : '0';
+
+      // Render ASCII calculations
+      renderBreakdown(word1, breakdown1);
+      renderBreakdown(word2, breakdown2);
+
+      // Conditions Checks
+      const cond1Valid = word1.trim() !== word2.trim() && word1.length > 0 && word2.length > 0;
+      const cond2Valid = word1.length >= 2 && word2.length >= 2;
+      const cond3Valid = hash1 === hash2 && word1.length > 0 && word2.length > 0;
+
+      // Update Condition 1 UI
+      updateConditionUI(cond1Valid, condDiff, iconCondDiff, statusCondDiff);
+      // Update Condition 2 UI
+      updateConditionUI(cond2Valid, condLen, iconCondLen, statusCondLen);
+      // Update Condition 3 UI
+      updateConditionUI(cond3Valid, condHash, iconCondHash, statusCondHash);
+
+      // All Conditions Satisfied!
+      if (cond1Valid && cond2Valid && cond3Valid) {
+        victoryBanner.classList.remove('hidden');
+        vWord1.innerText = word1;
+        vWord2.innerText = word2;
+        vHash.innerText = hash1;
+
+        cardWord1.classList.add('glow-purple', 'border-purple-500/80');
+        cardWord2.classList.add('glow-cyan', 'border-cyan-500/80');
+
+        if (!confettiTriggered) {
+          triggerConfetti();
+          confettiTriggered = true;
+        }
+      } else {
+        victoryBanner.classList.add('hidden');
+        cardWord1.classList.remove('glow-purple', 'border-purple-500/80');
+        cardWord2.classList.remove('glow-cyan', 'border-cyan-500/80');
+        confettiTriggered = false;
+      }
+    }
+
+    /**
+     * Helper to style validation checklist cards
+     */
+    function updateConditionUI(isValid, container, iconEl, statusEl) {
+      if (isValid) {
+        container.className = 'p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 flex items-center justify-between transition-all';
+        iconEl.className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm';
+        iconEl.innerHTML = '<i class="fa-solid fa-check"></i>';
+        statusEl.className = 'text-xs px-2 py-1 rounded font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        statusEl.innerText = 'Atendido';
+      } else {
+        container.className = 'p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between transition-all';
+        iconEl.className = 'w-8 h-8 rounded-lg bg-slate-800 text-slate-500 flex items-center justify-center font-bold text-sm';
+        iconEl.innerHTML = '<i class="fa-solid fa-times"></i>';
+        statusEl.className = 'text-xs px-2 py-1 rounded font-mono bg-slate-800 text-slate-500';
+        statusEl.innerText = 'Pendente';
+      }
+    }
+
+    // Event Listeners for Inputs
+    input1.addEventListener('input', validateChallenge);
+    input2.addEventListener('input', validateChallenge);
+
+    // Reset Button
+    btnReset.addEventListener('click', () => {
+      input1.value = '';
+      input2.value = '';
+      validateChallenge();
+      input1.focus();
+    });
+
+    // Preset Buttons
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const w1 = btn.getAttribute('data-w1');
+        const w2 = btn.getAttribute('data-w2');
+        input1.value = w1;
+        input2.value = w2;
+        validateChallenge();
+      });
+    });
+
+    // Toggle Hint Box
+    btnToggleHint.addEventListener('click', () => {
+      const isHidden = hintBox.classList.contains('hidden');
+      if (isHidden) {
+        hintBox.classList.remove('hidden');
+        btnToggleHint.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Ocultar Dica';
+      } else {
+        hintBox.classList.add('hidden');
+        btnToggleHint.innerHTML = '<i class="fa-solid fa-eye"></i> Ver Dica do Desafio';
+      }
+    });
+
+    // Anagram Generator Logic
+    btnGenerateAnagram.addEventListener('click', () => {
+      const val = generatorInput.value.trim();
+      if (val.length < 2) {
+        generatorInput.classList.add('border-red-500');
+        setTimeout(() => generatorInput.classList.remove('border-red-500'), 1500);
+        return;
+      }
+
+      // Generate a distinct anagram by reversing or shuffling characters
+      let shuffled = val.split('').reverse().join('');
+      if (shuffled === val) {
+        // If word is palindrome, swap first two chars
+        const arr = val.split('');
+        const temp = arr[0];
+        arr[0] = arr[1];
+        arr[1] = temp;
+        shuffled = arr.join('');
+      }
+
+      input1.value = val;
+      input2.value = shuffled;
+      validateChallenge();
+    });
+
+    // SHA-256 Real-time Comparison Demo Listener
+    async function updateShaDemo() {
+      const txt = shaCompareInput.value;
+      shaAsciiResult.innerText = txt.length > 0 ? calcula_hash(txt) : '0';
+      sha256Result.innerText = 'calculando...';
+      const shaHex = await computeSHA256(txt);
+      sha256Result.innerText = shaHex;
+    }
+
+    shaCompareInput.addEventListener('input', updateShaDemo);
+
+    // Initial Load Setup
+    window.addEventListener('DOMContentLoaded', () => {
+      validateChallenge();
+      updateShaDemo();
+    });
+  </script>
+</body>
+</html>
